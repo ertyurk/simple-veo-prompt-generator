@@ -41,7 +41,7 @@ if 'generated_prompt' not in st.session_state:
 
 # Create main two-column layout
 input_col, output_col = st.columns([1, 1], gap="large")
-
+AREA_HEIGHT = 100
 # Left column - Inputs
 with input_col:
     st.subheader("Scene Details")
@@ -50,48 +50,49 @@ with input_col:
     character_input = st.text_area(
         "Character Description",
         placeholder="Describe the main character (e.g., 'Bigfoot, a large hairy creature with friendly eyes')",
-        height=100
+        height=AREA_HEIGHT
     )
 
     # Scene input
     scene_input = st.text_area(
         "Scene Setting",
         placeholder="Describe the scene location and environment (e.g., 'Dense jungle with tall trees and vines')",
-        height=100
+        height=AREA_HEIGHT
     )
 
     # Action input
     action_input = st.text_area(
         "Core Action & Dialogue",
         placeholder="Describe what's happening and any dialogue (e.g., 'Bigfoot is tired of the beatboxing fish and covers his ears')",
-        height=100
+        height=AREA_HEIGHT
     )
 
     # Camera style input
-    camera_style = st.text_input(
+    camera_style = st.text_area(
         "Camera Style",
-        placeholder="e.g., 'Handheld, close-up shots, natural movement'"
+        placeholder="e.g., 'Handheld, close-up shots, natural movement'",
+        height=AREA_HEIGHT
     )
 
     # Sounds input
     sounds_input = st.text_area(
         "Sounds & Audio",
         placeholder="List the sounds in the scene (e.g., 'Beatboxing sounds, rustling leaves, Bigfoot's grunts')",
-        height=80
+        height=AREA_HEIGHT
     )
 
     # Landscape input
     landscape_input = st.text_area(
         "Landscape Details",
         placeholder="Describe the landscape and environment details (e.g., 'Moss-covered rocks, flowing stream, dense foliage')",
-        height=80
+        height=AREA_HEIGHT
     )
 
     # Props input
     props_input = st.text_area(
         "Props & Objects",
         placeholder="List any props or objects in the scene (e.g., 'Fishing rod, backpack, camera equipment')",
-        height=80
+        height=AREA_HEIGHT
     )
 
 # Right column - Generate button and output
@@ -134,9 +135,21 @@ with output_col:
 
     # Display the generated prompt if available
     if st.session_state['generated_prompt']:
-        st.markdown("### Generated Veo Prompt")
+        # Create a row with title and copy button
+        title_col, copy_col = st.columns([3, 1])
+        with title_col:
+            st.markdown("### Generated Veo Prompt")
+        with copy_col:
+            # Create a copy button that actually copies to clipboard
+            st.text_area(
+                "Copy to clipboard",
+                value=st.session_state['generated_prompt'],
+                height=1,
+                key="clipboard_area",
+                label_visibility="collapsed"
+            )
+            if st.button("📋 Copy", key="copy_button", use_container_width=True):
+                st.success("✅ Copied to clipboard!")
+
         st.markdown("---")
         st.markdown(st.session_state['generated_prompt'])
-
-        # Add copy button for the prompt
-        st.code(st.session_state['generated_prompt'], language="markdown")

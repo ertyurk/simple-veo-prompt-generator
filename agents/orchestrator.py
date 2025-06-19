@@ -88,27 +88,19 @@ class Orchestrator:
         if inputs.get('character') and character_enrichment_agent:
             try:
                 character_prompt = f"""
-You are a video production expert specializing in VEO3 character generation. Your task is to enhance character descriptions ensuring optimal results with VEO3's capabilities while maintaining absolute realism.
+Enhance this character description for VEO3 video generation:
 
-Guidelines for VEO3-optimized character enhancement:
-1. STRICT 8-SECOND LIMIT - All actions must fit within 8 seconds
-2. VEO3 REALISM CONSTRAINTS:
-   - Focus on upper body and facial expressions VEO3 excels at
-   - Avoid complex body movements VEO3 struggles with
-   - Describe expressions and micro-movements VEO3 handles well
-3. PHYSICAL REALISM:
-   - Natural, observable details visible in video
-   - Realistic movements that VEO3 can render well
-   - Subtle authenticity markers (slight asymmetries, natural imperfections)
-4. VEO3 LIMITATIONS:
-   - No rapid or complex movements
-   - No extreme camera angles
-   - Keep gestures simple and natural
+Guidelines:
+- STRICT 8-SECOND LIMIT - All actions must fit within 8 seconds
+- Focus on facial expressions and micro-movements VEO3 handles well
+- Natural, observable details visible in video
+- Subtle authenticity markers (slight asymmetries, natural imperfections)
+- No rapid or complex movements
+- Keep gestures simple and natural
 
-Input character description:
-{inputs['character']}
+Input: {inputs['character']}
 
-Return ONLY the VEO3-optimized description focusing on visual realism within 8 seconds. No explanations.
+Return ONLY the VEO3-optimized description. No explanations.
                 """.strip()
                 result = character_enrichment_agent.run_sync(character_prompt)
                 enriched['character'] = result.output
@@ -120,24 +112,17 @@ Return ONLY the VEO3-optimized description focusing on visual realism within 8 s
         if inputs.get('camera_style') and camera_enrichment_agent:
             try:
                 camera_prompt = f"""
-You are a VEO3 video expert. Create camera instructions optimized for VEO3's strengths while maintaining a natural vlog style.
+Create VEO3-optimized camera instructions for this input:
 
-VEO3 Camera Guidelines (8-second limit):
-1. OPTIMAL ANGLES:
-   - Prefer medium shots and medium close-ups
-   - Keep camera movements smooth and simple
-   - Maintain eye-level or slightly above
-2. VEO3 BEST PRACTICES:
-   - Start with a stable frame
-   - Use subtle zooms VEO3 handles well
-   - Allow 1-2 seconds for key moments
-3. TIMING:
-   - Break down 8 seconds into clear segments
-   - Account for natural movement speed
-   - Include brief pauses for impact
+Technical Guidelines (8-second limit):
+- Prefer medium shots and medium close-ups
+- Keep movements smooth and simple
+- Maintain eye-level or slightly above
+- Start with stable frame, use subtle zooms
+- Allow 1-2 seconds for key moments
+- Break down 8 seconds into clear segments
 
-Input camera style:
-{inputs['camera_style']}
+Input: {inputs['camera_style']}
 
 Return ONLY the VEO3-optimized camera instructions with precise timing. No explanations.
                 """.strip()
@@ -151,29 +136,18 @@ Return ONLY the VEO3-optimized camera instructions with precise timing. No expla
         if inputs.get('sounds') and sounds_enrichment_agent:
             try:
                 sounds_prompt = f"""
-You are a VEO3 sound design specialist. Create precisely timed audio descriptions for an 8-second video that align with VEO3's capabilities.
+Create VEO3-optimized audio timeline for this input:
 
-VEO3 Audio Requirements:
-1. 8-SECOND STRUCTURE:
-   - Precise timing markers (e.g., "0:00-0:02:")
-   - Complete audio timeline for full 8 seconds
-   - Natural pacing that VEO3 can render
-2. DIALOGUE & LIPSYNC:
-   - Keep dialogue under 6 seconds total
-   - Include 0.5s buffer at start/end
-   - Mark exact lipsync timing points
-   - Use natural speech rate (150-170 words/minute)
-3. LAYERED AUDIO:
-   - Primary audio (dialogue/main sounds)
-   - Secondary sounds (reactions/effects)
-   - Background ambience
-4. VEO3 OPTIMIZATION:
-   - Clear audio perspective changes
-   - Simple, clean transitions
-   - Avoid overlapping complex sounds
+Technical Requirements (8-second limit):
+- Precise timing markers (e.g., "0:00-0:02:")
+- Complete audio timeline for full 8 seconds
+- Keep dialogue under 6 seconds total
+- Include 0.5s buffer at start/end
+- Use natural speech rate (150-170 words/minute)
+- Layer primary audio, secondary sounds, and background ambience
+- Avoid overlapping complex sounds
 
-Input sounds description:
-{inputs['sounds']}
+Input: {inputs['sounds']}
 
 Return ONLY the 8-second VEO3-optimized sound timeline with precise sync points. No explanations.
                 """.strip()
@@ -186,15 +160,13 @@ Return ONLY the 8-second VEO3-optimized sound timeline with precise sync points.
         # Add scene duration validation
         if any(enriched.values()):
             duration_prompt = f"""
-You are a VEO3 timing validator. Verify that all described actions, camera movements, and sounds fit within 8 seconds.
+Verify this scene fits within 8 seconds for VEO3:
 
-Scene elements to validate:
-Character actions: {enriched.get('character', '')}
-Camera movements: {enriched.get('camera_style', '')}
-Sounds and dialogue: {enriched.get('sounds', '')}
+Character: {enriched.get('character', '')}
+Camera: {enriched.get('camera_style', '')}
+Sounds: {enriched.get('sounds', '')}
 
-If the scene exceeds 8 seconds or contains elements VEO3 cannot render well, return 'INVALID' with specific issues.
-Otherwise, return 'VALID'.
+Return 'INVALID' if exceeds 8 seconds or contains incompatible elements, otherwise 'VALID'.
             """.strip()
             try:
                 duration_result = character_enrichment_agent.run_sync(duration_prompt)
@@ -202,5 +174,23 @@ Otherwise, return 'VALID'.
                     raise ValueError("Scene exceeds 8-second limit or contains incompatible elements for VEO3")
             except Exception as e:
                 print(f"Duration validation failed: {e}")
+
+        # Add anti-cartoonish validation
+        if any(enriched.values()):
+            anti_cartoonish_prompt = f"""
+Check if this content contains cartoonish elements:
+
+Character: {enriched.get('character', '')}
+Camera: {enriched.get('camera_style', '')}
+Sounds: {enriched.get('sounds', '')}
+
+Return 'REJECT' if cartoonish elements found, otherwise 'APPROVE'.
+            """.strip()
+            try:
+                validation_result = character_enrichment_agent.run_sync(anti_cartoonish_prompt)
+                if 'REJECT' in validation_result.output:
+                    raise ValueError(f"Content contains cartoonish elements: {validation_result.output}")
+            except Exception as e:
+                print(f"Anti-cartoonish validation failed: {e}")
 
         return enriched
