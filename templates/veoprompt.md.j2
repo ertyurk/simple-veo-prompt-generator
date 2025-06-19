@@ -18,9 +18,9 @@ The video must look like a genuine, spontaneous moment from a real vlog—not ci
 **Sounds:**
 - {{ sounds | join('\n- ') }}
 
-{% for char, desc in character_appearance_notes.items() %}
-**{{ char }} Appearance:**
-- {{ desc }}
+{% for char in character_appearances %}
+**{{ char.character_name }} Appearance:**
+- {{ char.appearance_description }}
 {% endfor %}
 
 **Landscape:**

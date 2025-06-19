@@ -6,19 +6,39 @@ from config import Config
 google_key = Config.get_google_api_key()
 anthropic_key = Config.get_anthropic_api_key()
 
-# Agent to parse user input and ask clarifying questions
+# Core agents for context and assembly
 if google_key:
-    input_elaboration_agent = Agent(
+    context_analysis_agent = Agent(
         model="gemini-2.5-flash",
         output_type=SceneInput,
     )
-    prompt_generator_agent = Agent(
+
+    final_assembly_agent = Agent(
         model="gemini-2.5-flash",
         output_type=FinalVeoPrompt,
     )
+
+    # Specialized enrichment agents
+    character_enrichment_agent = Agent(
+        model="gemini-2.5-flash",
+        output_type=str,
+    )
+
+    camera_enrichment_agent = Agent(
+        model="gemini-2.5-flash",
+        output_type=str,
+    )
+
+    sounds_enrichment_agent = Agent(
+        model="gemini-2.5-flash",
+        output_type=str,
+    )
 else:
-    input_elaboration_agent = None
-    prompt_generator_agent = None
+    context_analysis_agent = None
+    final_assembly_agent = None
+    character_enrichment_agent = None
+    camera_enrichment_agent = None
+    sounds_enrichment_agent = None
 
 # Agent to validate the realism and style of a proposed scene
 if anthropic_key:

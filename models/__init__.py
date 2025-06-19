@@ -23,6 +23,10 @@ class SceneInput(BaseModel):
     duration_seconds: Optional[int] = None
     language: str = "turkish"
 
+class CharacterAppearance(BaseModel):
+    character_name: str
+    appearance_description: str
+
 class FinalVeoPrompt(BaseModel):
     main_character_description: str
     scene_setting_description: str
@@ -30,7 +34,7 @@ class FinalVeoPrompt(BaseModel):
     core_action_and_dialogue: str
     camera_style: str
     sounds: List[str]
-    character_appearance_notes: Dict[str, str]
+    character_appearances: List[CharacterAppearance] = Field(default_factory=list)
     landscape_notes: str
     props: List[str]
     timing_breakdown: Optional[Dict[str, str]] = None
