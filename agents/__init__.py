@@ -1,80 +1,77 @@
 from pydantic_ai import Agent
-from models import SceneInput, FinalVeoPrompt
+from models import FinalVeoPrompt
 from config import Config
 
 # Check if API keys are available
 google_key = Config.get_google_api_key()
 anthropic_key = Config.get_anthropic_api_key()
 
-# Core agents for context and assembly
+# Single Master Agent Model
+MASTER_PROMPT_AGENT_MODEL = "google-gla:gemini-2.5-flash"
+
+# Master System Prompt that captures the essence of GREATLY_WORKED_PROMPTS.md
+MASTER_SYSTEM_PROMPT = """
+You are an expert video prompt engineer specialized in creating YouTube vlog-style prompts that match the quality and style of "Outdoor Boys" channel content. Your task is to transform minimal user inputs into rich, detailed, professional video prompts.
+
+CRITICAL REQUIREMENTS:
+1. ALWAYS start with: "Create a realistic, entertaining YouTube vlog video in the style of the channel 'Outdoor Boys.'"
+2. Generate content that looks like genuine, spontaneous vlog moments—NOT cinematic or overly polished
+3. Keep everything within 8 seconds maximum duration
+4. Focus on natural, handheld, authentic feel
+5. Characters can be fantastical (Bigfoot, Yeti, etc.) but must have realistic movements and expressions
+
+PROMPT STRUCTURE (Follow this EXACT format):
+
+**Opening Statement**: "Create a realistic, entertaining YouTube vlog video in the style of the channel 'Outdoor Boys.'"
+
+**Main Character & Setting**: Rich, detailed description combining character and environment. Include personality traits, physical details, and atmospheric setting. Example: "The main characters are a friendly, large Yeti with shaggy white fur and Bigfoot from the channel 'BigfootVlogs,' both standing in a breathtaking snowy mountain landscape: snow-covered pine trees, deep snow, rugged mountains in the background, cloudy sky. The mood is friendly, adventurous, and authentic, just like Outdoor Boys."
+
+**Authenticity Statement**: "The video should look like a genuine, spontaneous scene from a real vlog, not cinematic or overly polished—just natural, handheld, and authentic."
+
+**Core Action & Dialogue**: Detailed description of what happens, including specific dialogue and character interactions. Keep actions simple but engaging. Include character reactions and personality moments.
+
+**Character Quote**: Include at least one memorable quote from a character that fits the scene.
+
+**Camera Style**: Detailed camera instructions with specific shot types and movements. Always mention "POV, selfie stick" and keep it handheld and personal. Include timing if relevant.
+
+**Sounds**: List specific sounds with timing and atmosphere. Include dialogue, environmental sounds, and character reactions.
+
+**Character Personality**: Brief personality traits for main characters.
+
+**Landscape**: Rich, detailed environmental description that enhances the scene.
+
+**Props**: List of objects and items in the scene, keeping it natural and authentic.
+
+QUALITY STANDARDS:
+- Write in the same engaging, detailed style as the samples
+- Use vivid, cinematic descriptions while maintaining vlog authenticity
+- Include specific dialogue that fits character personalities
+- Balance fantasy elements with realistic execution
+- Ensure all actions fit within 8 seconds
+- Maintain consistent "Outdoor Boys" vlog style throughout
+
+EXAMPLES OF EXCELLENT ELEMENTS:
+- "They compete to see who can make the most ridiculous, towering sandwich. Both creatures laugh, toss snowballs, and try to take a big bite—only to get a face full of snow."
+- "Camera style: POV, selfie stick, occasional drone shots capturing the snow kitchen and the playful chaos, but always keeping the raw, vlog-like feel—unsteady, handheld, and personal."
+- "Sounds: Crunching snow, laughter, playful banter, echoing mountains."
+
+Transform the user's minimal inputs into rich, detailed prompts that match this quality and style exactly.
+"""
+
+# Single Master Agent
 if google_key:
-    context_analysis_agent = Agent(
-        model="gemini-2.5-flash",
-        output_type=SceneInput,
-        system_prompt="""You are a video production analyst specializing in realistic vlog-style content. Parse user inputs and extract structured scene information.
-
-Focus on realistic, observable actions. Avoid cartoonish or fantastical elements. Think like a real vlogger capturing genuine moments."""
-    )
-
-    final_assembly_agent = Agent(
-        model="gemini-2.5-flash",
+    master_prompt_agent = Agent(
+        model=MASTER_PROMPT_AGENT_MODEL,
         output_type=FinalVeoPrompt,
-        system_prompt="""You are a video prompt engineer creating realistic vlog-style prompts for VEO3 video generation.
-
-CRITICAL: Every element must be physically realistic and natural. Avoid cartoonish expressions, movements, or behaviors. Create prompts that feel like genuine, spontaneous vlog moments.
-
-Focus on facial expressions and upper body movements within 8 seconds. Use realistic camera angles and natural dialogue."""
-    )
-
-    # Specialized enrichment agents
-    character_enrichment_agent = Agent(
-        model="gemini-2.5-flash",
-        output_type=str,
-        system_prompt="""You are a VEO3 character optimization specialist. Enhance character descriptions for realistic video generation.
-
-Focus on realistic facial features and expressions. Avoid exaggerated or cartoonish descriptions. Think in terms of real people, not animated characters.
-
-Optimize for VEO3's strengths: natural skin textures, realistic hair/clothing, authentic facial expressions."""
-    )
-
-    camera_enrichment_agent = Agent(
-        model="gemini-2.5-flash",
-        output_type=str,
-        system_prompt="""You are a VEO3 camera movement specialist. Create realistic camera instructions for authentic vlog-style video.
-
-Use natural, handheld camera movements. Avoid cinematic or overly polished work. Think like a real person holding a camera.
-
-Prefer stable positions with subtle movements VEO3 handles well."""
-    )
-
-    sounds_enrichment_agent = Agent(
-        model="gemini-2.5-flash",
-        output_type=str,
-        system_prompt="""You are a VEO3 sound design specialist. Create realistic audio descriptions for authentic vlog-style video.
-
-Use natural, realistic sounds and dialogue. Avoid cartoonish or exaggerated audio elements. Think like real audio from genuine vlog footage.
-
-Focus on natural speech rates, realistic ambient sounds, and authentic dialogue delivery."""
+        system_prompt=MASTER_SYSTEM_PROMPT
     )
 else:
-    context_analysis_agent = None
-    final_assembly_agent = None
-    character_enrichment_agent = None
-    camera_enrichment_agent = None
-    sounds_enrichment_agent = None
+    master_prompt_agent = None
 
-# Agent to validate the realism and style of a proposed scene
-if anthropic_key:
-    realism_filter_agent = Agent(
-        model="claude-3-5-haiku-latest",
-        output_type=bool,
-        system_prompt="""You are a realism validator for AI video generation. Determine if a scene will produce realistic, non-cartoonish video content.
-
-REJECT if contains: exaggerated expressions, cartoonish elements, unrealistic actions, overly dramatic elements, or anything artificial.
-
-APPROVE only if: realistic, physically possible, authentic, suitable for vlog-style video, and free from cartoonish elements.
-
-Return TRUE for realistic scenes, FALSE for cartoonish content."""
-    )
-else:
-    realism_filter_agent = None
+# Legacy agents set to None (no longer needed)
+context_analysis_agent = None
+final_assembly_agent = None
+character_enrichment_agent = None
+camera_enrichment_agent = None
+sounds_enrichment_agent = None
+realism_filter_agent = None

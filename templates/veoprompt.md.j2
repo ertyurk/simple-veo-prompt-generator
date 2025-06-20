@@ -1,40 +1,17 @@
-Create a realistic, authentic YouTube vlog video that looks like genuine, spontaneous footage from a real vlogger. This must NOT look cartoonish, animated, or artificial.
+Create a realistic, entertaining YouTube vlog video in the style of the channel "Outdoor Boys."
 
-{{ main_character_description }}. He/She is in {{ scene_setting_description }}. The atmosphere is {{ atmosphere_and_mood }}.
+{{ main_character_description }}. {{ scene_setting_description }}. {{ atmosphere_and_mood }}.
 
-REALISM REQUIREMENTS:
-- All movements, expressions, and actions must be physically realistic and natural
-- Avoid any cartoonish, exaggerated, or artificial elements
-- Maintain authentic, documentary-style authenticity throughout
+The video should look like a genuine, spontaneous scene from a real vlog, not cinematic or overly polished—just natural, handheld, and authentic.
 
 {{ core_action_and_dialogue }}
 
-{% if timing_breakdown %}
-{% for time, action in timing_breakdown.items() %}
-**{{ time }}:** {{ action }}
-{% endfor %}
-{% endif %}
+**Camera style:** {{ camera_style }}
 
-**Camera style:**
-- {{ camera_style }}
-- Natural, handheld camera work from a real vlogger
+**Sounds:** {{ sounds | join(', ') }}
 
-**Sounds:**
-- {{ sounds | join('\n- ') }}
-- Realistic and authentic audio
+**Character Personality:** {{ main_character_description.split('.')[0] | default('Main character') }} - {{ atmosphere_and_mood }}
 
-{% for char in character_appearances %}
-**{{ char.character_name }} Appearance:**
-- {{ char.appearance_description }}
-- Real person, not cartoonish or artificial
-{% endfor %}
+**Landscape:** {{ landscape_notes }}
 
-**Landscape:**
-- {{ landscape_notes }}
-- Realistic and authentic environment
-
-**Props:**
-- {{ props | join('\n- ') }}
-- Real objects, naturally placed
-
-This video must look like genuine vlog footage from a real person in a real environment.
+**Props:** {{ props | join(', ') }}
