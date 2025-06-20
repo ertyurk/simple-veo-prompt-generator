@@ -1,7 +1,7 @@
 from typing import Dict, List
 from models import FinalVeoPrompt, MultiScenePrompt
 from session_manager import SessionManager
-from agents import master_prompt_agent
+from agents import master_prompt_agent, string_agent
 from config import Config
 from jinja2 import Environment, FileSystemLoader
 
@@ -36,7 +36,7 @@ class Orchestrator:
     def process_multi_scene_input(self, multi_scene_data: Dict) -> str:
         """
         Process multiple video scenes with consistency across all videos.
-        Returns formatted multi-scene prompts as a string.
+        Each prompt will be completely self-contained with consistent character/environment descriptions.
         """
         if not master_prompt_agent:
             raise RuntimeError("Google API key not set. Cannot process input.")
@@ -48,9 +48,11 @@ class Orchestrator:
         if not video_scenes:
             raise ValueError("No video scenes provided")
 
-        # Generate individual prompts for each scene
+        # First pass: Generate consistent elements across all scenes
+        consistent_elements = self._build_consistent_elements(video_scenes, overall_story, main_characters)
+
+        # Second pass: Generate individual self-contained prompts
         scene_prompts = []
-        consistent_elements = self._extract_consistent_elements(video_scenes, overall_story, main_characters)
 
         for i, scene_data in enumerate(video_scenes):
             scene_num = i + 1
@@ -60,8 +62,8 @@ class Orchestrator:
                 continue
 
             try:
-                # Create context-aware prompt for this scene
-                scene_prompt = self._create_scene_prompt(scene_data, scene_num, consistent_elements, len(video_scenes))
+                # Create fully self-contained prompt for this scene
+                scene_prompt = self._create_self_contained_scene_prompt(scene_data, scene_num, consistent_elements)
 
                 # Generate the prompt using master agent
                 prompt_result = master_prompt_agent.run_sync(scene_prompt)
@@ -88,41 +90,120 @@ class Orchestrator:
         # Format all prompts into the final output
         return self._format_multi_scene_output(scene_prompts, consistent_elements)
 
-    def _extract_consistent_elements(self, video_scenes: List[Dict], overall_story: str, main_characters: str) -> Dict[str, str]:
-        """Extract consistent elements across all scenes for continuity."""
-        # Analyze all scenes to find common elements
-        all_characters = set()
+    def _build_consistent_elements(self, video_scenes: List[Dict], overall_story: str, main_characters: str) -> Dict[str, str]:
+        """Build consistent character descriptions, props, and environments that will be identical across all scenes."""
+
+        # Collect all unique elements
+        all_characters = {}
         all_props = set()
         all_landscapes = set()
+        all_sounds = set()
+
+        # Extract and consolidate elements from all scenes
+        for scene in video_scenes:
+            # Characters - build detailed descriptions
+            if scene.get('character', '').strip():
+                chars = [char.strip() for char in scene['character'].split(',')]
+                for char in chars:
+                    if char and char not in all_characters:
+                        all_characters[char] = char  # Will be enhanced later
+
+            # Props
+            if scene.get('props', '').strip():
+                all_props.update([prop.strip() for prop in scene['props'].split(',') if prop.strip()])
+
+            # Landscapes
+            if scene.get('landscape', '').strip():
+                all_landscapes.update([land.strip() for land in scene['landscape'].split(',') if land.strip()])
+
+            # Sounds
+            if scene.get('sounds', '').strip():
+                all_sounds.update([sound.strip() for sound in scene['sounds'].split(',') if sound.strip()])
+
+        # Build consistent character descriptions from user inputs
+        character_descriptions = self._generate_consistent_character_descriptions(video_scenes, main_characters)
+
+        return {
+            'overall_story': overall_story or 'Authentic outdoor adventure vlog',
+            'main_characters': main_characters or ', '.join(list(all_characters.keys())[:3]),
+            'character_descriptions': character_descriptions,
+            'consistent_props': list(all_props)[:5],  # Top 5 most important props
+            'consistent_landscape': list(all_landscapes)[:3],  # Key landscape elements
+            'consistent_sounds': list(all_sounds)[:7],  # Essential sound elements
+            'vlog_style': 'Outdoor Boys authentic handheld vlog style',
+            'total_scenes': len(video_scenes)
+        }
+
+    def _generate_consistent_character_descriptions(self, video_scenes: List[Dict], main_characters: str) -> Dict[str, str]:
+        """Generate consistent character descriptions based on user inputs using AI."""
+        if not string_agent:
+            return {}
+
+        # Collect all character mentions from scenes
+        all_character_info = {}
 
         for scene in video_scenes:
             if scene.get('character', '').strip():
-                all_characters.update([char.strip() for char in scene['character'].split(',')])
-            if scene.get('props', '').strip():
-                all_props.update([prop.strip() for prop in scene['props'].split(',')])
-            if scene.get('landscape', '').strip():
-                all_landscapes.update([land.strip() for land in scene['landscape'].split(',')])
+                # Parse characters from this scene
+                chars = [char.strip() for char in scene['character'].split(',')]
+                for char in chars:
+                    if char:
+                        # Store the most detailed description we find
+                        if char not in all_character_info or len(scene['character']) > len(all_character_info[char]):
+                            all_character_info[char] = scene['character']
 
-        return {
-            'overall_story': overall_story or 'Connected outdoor adventure scenes',
-            'main_characters': main_characters or ', '.join(list(all_characters)[:3]),  # Limit to main 3
-            'common_props': ', '.join(list(all_props)[:5]),  # Common props across scenes
-            'common_landscape': ', '.join(list(all_landscapes)[:3]),  # Common landscape elements
-            'total_scenes': len(video_scenes),
-            'vlog_style': 'Outdoor Boys authentic handheld vlog style'
-        }
+        if not all_character_info:
+            return {}
 
-    def _create_scene_prompt(self, scene_data: Dict, scene_num: int, consistent_elements: Dict, total_scenes: int) -> str:
-        """Create a context-aware prompt for a single scene."""
+        character_descriptions = {}
+
+        for char in list(all_character_info.keys())[:3]:  # Limit to 3 main characters
+            # Use the string agent to enhance the user's character description
+            enhancement_prompt = f"""
+Enhance this character description for professional YouTube vlog consistency: "{all_character_info[char]}"
+
+Character: {char}
+User description: {all_character_info[char]}
+
+Make it 15-25 words, focus on visual details, maintain authentic realistic style.
+Return ONLY the enhanced description.
+"""
+            try:
+                enhanced_result = string_agent.run_sync(enhancement_prompt)
+                character_descriptions[char] = enhanced_result.output.strip()
+
+                # Clean up the description if it has quotes
+                if character_descriptions[char].startswith('"') and character_descriptions[char].endswith('"'):
+                    character_descriptions[char] = character_descriptions[char][1:-1]
+
+            except Exception as e:
+                print(f"Error enhancing character {char}: {e}")
+                # Fallback to user's original description
+                character_descriptions[char] = all_character_info[char]
+
+        return character_descriptions
+
+    def _create_self_contained_scene_prompt(self, scene_data: Dict, scene_num: int, consistent_elements: Dict) -> str:
+        """Create a completely self-contained prompt with consistent descriptions but no references to other scenes."""
+
+        # Start with the scene-specific information
         prompt_parts = [
-            f"Create a professional 8-second YouTube vlog scene (Video {scene_num} of {total_scenes}).",
-            f"This is part of a {total_scenes}-video series about: {consistent_elements['overall_story']}"
+            f"Create a professional 8-second YouTube vlog scene in the 'Outdoor Boys' style.",
+            f"This scene is part of: {consistent_elements['overall_story']}"
         ]
 
-        # Add scene-specific details
+        # Use consistent character descriptions
         if scene_data.get('character', '').strip():
-            prompt_parts.append(f"Character: {scene_data['character']}")
+            scene_chars = [char.strip() for char in scene_data['character'].split(',')]
+            consistent_char_desc = []
+            for char in scene_chars:
+                if char in consistent_elements['character_descriptions']:
+                    consistent_char_desc.append(consistent_elements['character_descriptions'][char])
+                else:
+                    consistent_char_desc.append(char)
+            prompt_parts.append(f"Characters: {', and '.join(consistent_char_desc)}")
 
+        # Scene-specific details
         if scene_data.get('scene_setting', '').strip():
             prompt_parts.append(f"Scene Setting: {scene_data['scene_setting']}")
 
@@ -131,40 +212,75 @@ class Orchestrator:
 
         if scene_data.get('camera_style', '').strip():
             prompt_parts.append(f"Camera Style: {scene_data['camera_style']}")
+        else:
+            prompt_parts.append("Camera Style: POV, selfie stick, handheld and natural")
 
+        # Combine scene sounds with consistent background sounds
+        scene_sounds = []
         if scene_data.get('sounds', '').strip():
-            prompt_parts.append(f"Sounds: {scene_data['sounds']}")
+            scene_sounds.extend([s.strip() for s in scene_data['sounds'].split(',') if s.strip()])
 
+        # Add consistent environmental sounds that don't conflict
+        for sound in consistent_elements['consistent_sounds']:
+            if sound not in scene_sounds:
+                scene_sounds.append(sound)
+
+        if scene_sounds:
+            prompt_parts.append(f"Sounds: {', '.join(scene_sounds[:7])}")  # Limit to 7 sounds max
+
+        # Landscape with consistent elements
+        landscape_elements = []
         if scene_data.get('landscape', '').strip():
-            prompt_parts.append(f"Landscape: {scene_data['landscape']}")
+            landscape_elements.append(scene_data['landscape'])
 
+        # Add consistent landscape elements that enhance the scene
+        for land in consistent_elements['consistent_landscape']:
+            if land.lower() not in scene_data.get('landscape', '').lower():
+                landscape_elements.append(land)
+
+        if landscape_elements:
+            prompt_parts.append(f"Landscape: {', '.join(landscape_elements[:3])}")
+
+        # Props with consistent elements
+        props_elements = []
         if scene_data.get('props', '').strip():
-            prompt_parts.append(f"Props: {scene_data['props']}")
+            props_elements.extend([p.strip() for p in scene_data['props'].split(',') if p.strip()])
 
-        # Add consistency requirements
+        # Add consistent props that make sense for continuity
+        for prop in consistent_elements['consistent_props']:
+            if prop not in props_elements:
+                props_elements.append(prop)
+
+        if props_elements:
+            prompt_parts.append(f"Props: {', '.join(props_elements[:5])}")
+
+        # Final instructions for self-contained, high-quality output
         prompt_parts.extend([
-            f"\nMAINTAIN CONSISTENCY with other scenes:",
-            f"- Main characters: {consistent_elements['main_characters']}",
-            f"- Overall story theme: {consistent_elements['overall_story']}",
-            f"- Vlog style: {consistent_elements['vlog_style']}",
-            f"\nGenerate a rich, detailed prompt that matches the quality and style of professional 'Outdoor Boys' vlog content.",
-            f"This scene should work as both a standalone 8-second video AND as part of the larger {total_scenes}-video series."
+            "\nCRITICAL INSTRUCTIONS:",
+            "- Create a completely self-contained prompt with NO references to 'previous scenes' or 'earlier episodes'",
+            "- Use the consistent character descriptions provided to maintain continuity",
+            "- Generate rich, detailed descriptions matching GREATLY_WORKED_PROMPTS.md quality",
+            "- Ensure authentic 'Outdoor Boys' vlog style throughout",
+            "- This must work as a standalone 8-second video prompt",
+            "- Include specific dialogue and character interactions",
+            "- Maintain natural, realistic movements and expressions"
         ])
 
         return "\n".join(prompt_parts)
 
     def _format_multi_scene_output(self, scene_prompts: List[Dict], consistent_elements: Dict) -> str:
-        """Format all scene prompts into the final multi-video output."""
+        """Format all scene prompts into the final multi-video output with completely self-contained prompts."""
         output_parts = [
             f"# Multi-Scene Professional Vlog Prompts\n",
             f"**Total Duration:** {len(scene_prompts) * 8} seconds ({len(scene_prompts)} videos)",
             f"**Overall Story:** {consistent_elements['overall_story']}",
             f"**Main Characters:** {consistent_elements['main_characters']}",
             f"**Style:** {consistent_elements['vlog_style']}\n",
+            "**Note:** Each prompt below is completely self-contained and can be used independently for VEO3 generation.\n",
             "---\n"
         ]
 
-        # Add individual video prompts
+        # Add individual video prompts - each completely self-contained
         for scene_data in scene_prompts:
             scene_num = scene_data['scene_number']
             prompt = scene_data['prompt']
@@ -177,7 +293,6 @@ class Orchestrator:
                 f"{prompt.core_action_and_dialogue}\n",
                 f"**Camera style:** {prompt.camera_style}\n",
                 f"**Sounds:** {', '.join(prompt.sounds)}\n",
-                f"**Character Personality:** {prompt.main_character_description.split('.')[0] if '.' in prompt.main_character_description else 'Main character'} - {prompt.atmosphere_and_mood}\n",
                 f"**Landscape:** {prompt.landscape_notes}\n",
                 f"**Props:** {', '.join(prompt.props)}\n",
                 "---\n"
@@ -217,6 +332,7 @@ class Orchestrator:
         character = inputs.get('character', 'A friendly outdoor enthusiast')
         scene = inputs.get('scene', 'in a natural outdoor setting')
         action = inputs.get('action', 'exploring and sharing their adventure')
+        print("Fallback prompt created", character, scene, action)
 
         return FinalVeoPrompt(
             main_character_description=character,

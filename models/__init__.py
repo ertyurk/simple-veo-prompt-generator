@@ -47,7 +47,6 @@ class FinalVeoPrompt(BaseModel):
     character_appearances: List[CharacterAppearance] = Field(default_factory=list)
     landscape_notes: str
     props: List[str]
-    timing_breakdown: Optional[Dict[str, str]] = None
 
 class MultiScenePrompt(BaseModel):
     """Container for multiple video scenes with consistency tracking"""

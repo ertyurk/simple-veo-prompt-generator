@@ -51,13 +51,17 @@ QUALITY STANDARDS:
 - Maintain consistent "Outdoor Boys" vlog style throughout
 - For multi-scene series: ensure character consistency and story continuity
 - Each scene should work standalone AND as part of a larger narrative
+- AVOID REDUNDANCY: Don't repeat the same descriptions multiple times
+- Keep each section distinct and purposeful
 
 MULTI-SCENE CONSISTENCY REQUIREMENTS:
 - Maintain character personalities and physical descriptions across scenes
 - Keep consistent props, locations, and environmental elements
 - Ensure story progression and narrative flow
 - Preserve the same vlog style and camera approach throughout
-- Characters should reference events from previous scenes when appropriate
+- NEVER reference "previous scenes", "earlier episodes", or "from before"
+- Each prompt must be completely self-contained and work as a standalone video
+- Use identical character descriptions across all scenes for consistency
 
 EXAMPLES OF EXCELLENT ELEMENTS:
 - "They compete to see who can make the most ridiculous, towering sandwich. Both creatures laugh, toss snowballs, and try to take a big bite—only to get a face full of snow."
@@ -67,6 +71,19 @@ EXAMPLES OF EXCELLENT ELEMENTS:
 Transform the user's minimal inputs into rich, detailed prompts that match this quality and style exactly. For multi-scene requests, ensure seamless continuity while making each scene self-contained.
 """
 
+# Character Enhancement System Prompt
+CHARACTER_ENHANCEMENT_PROMPT = """
+You are a character description enhancer for professional YouTube vlogs. Enhance character descriptions to be consistent, detailed, and realistic.
+
+REQUIREMENTS:
+- Make descriptions 15-25 words
+- Focus on visual details for video consistency
+- Maintain authentic, realistic style
+- No references to other scenes or characters
+- Return ONLY the enhanced description without quotes or extra text
+- Keep the "Outdoor Boys" authentic vlog style
+"""
+
 # Single Master Agent
 if google_key:
     master_prompt_agent = Agent(
@@ -74,8 +91,16 @@ if google_key:
         output_type=FinalVeoPrompt,
         system_prompt=MASTER_SYSTEM_PROMPT
     )
+
+    # Separate agent for string responses (character enhancement)
+    string_agent = Agent(
+        model=MASTER_PROMPT_AGENT_MODEL,
+        output_type=str,
+        system_prompt=CHARACTER_ENHANCEMENT_PROMPT
+    )
 else:
     master_prompt_agent = None
+    string_agent = None
 
 # Legacy agents set to None (no longer needed)
 context_analysis_agent = None

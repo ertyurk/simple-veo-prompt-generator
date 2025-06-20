@@ -14,9 +14,10 @@ st.markdown("*Create multiple 8-second scenes for up to 40-second professional v
 # Check API key status
 google_key = Config.get_google_api_key()
 anthropic_key = Config.get_anthropic_api_key()
+openai_key = Config.get_openai_api_key()
 
 # Display API key status in a more compact way
-api_col1, api_col2 = st.columns(2)
+api_col1, api_col2, api_col3 = st.columns(3)
 with api_col1:
     if google_key:
         st.success("✅ Google API Key: Set")
@@ -27,6 +28,11 @@ with api_col2:
         st.success("✅ Anthropic API Key: Set")
     else:
         st.info("ℹ️ Anthropic API Key: Optional")
+with api_col3:
+    if openai_key:
+        st.success("✅ OpenAI API Key: Set")
+    else:
+        st.info("ℹ️ OpenAI API Key: Optional")
 
 if not google_key:
     st.warning("⚠️ Please set the GOOGLE_API_KEY environment variable to use this application.")
