@@ -27,6 +27,16 @@ class CharacterAppearance(BaseModel):
     character_name: str
     appearance_description: str
 
+class VideoScene(BaseModel):
+    scene_number: int
+    character: str
+    scene_setting: str
+    action_dialogue: str
+    camera_style: str
+    sounds: str
+    landscape: str
+    props: str
+
 class FinalVeoPrompt(BaseModel):
     main_character_description: str
     scene_setting_description: str
@@ -38,3 +48,11 @@ class FinalVeoPrompt(BaseModel):
     landscape_notes: str
     props: List[str]
     timing_breakdown: Optional[Dict[str, str]] = None
+
+class MultiScenePrompt(BaseModel):
+    """Container for multiple video scenes with consistency tracking"""
+    overall_story: str
+    main_characters: List[str]
+    consistent_elements: Dict[str, str]  # Props, locations, etc. that should remain consistent
+    video_scenes: List[FinalVeoPrompt]
+    total_duration: int  # Total duration in seconds

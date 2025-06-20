@@ -1,15 +1,15 @@
 import streamlit as st
 from session_manager import SessionManager
 from agents.orchestrator import Orchestrator
-from models import FinalVeoPrompt
+from models import FinalVeoPrompt, MultiScenePrompt, VideoScene
 from jinja2 import Environment, FileSystemLoader
 from config import Config
 
 # Set page config to wide mode
 st.set_page_config(layout="wide")
 
-st.title("VeoPrompt-Pro: Generate Professional Vlog Prompts")
-st.markdown("*Transform minimal inputs into rich, detailed YouTube vlog prompts like 'Outdoor Boys' channel*")
+st.title("VeoPrompt-Pro: Multi-Scene Vlog Generator")
+st.markdown("*Create multiple 8-second scenes for up to 40-second professional vlogs*")
 
 # Check API key status
 google_key = Config.get_google_api_key()
@@ -37,146 +37,213 @@ if 'session_manager' not in st.session_state:
     st.session_state['session_manager'] = SessionManager()
 if 'orchestrator' not in st.session_state:
     st.session_state['orchestrator'] = Orchestrator(st.session_state['session_manager'])
-if 'generated_prompt' not in st.session_state:
-    st.session_state['generated_prompt'] = None
+if 'video_scenes' not in st.session_state:
+    st.session_state['video_scenes'] = [{}]  # Start with one empty scene
+if 'generated_prompts' not in st.session_state:
+    st.session_state['generated_prompts'] = None
 
-# Create main two-column layout
-input_col, output_col = st.columns([1, 1], gap="large")
+# Helper function to create scene input fields
+def create_scene_input(scene_num, scene_data):
+    """Create input fields for a single video scene"""
 
-# Left column - Simplified Inputs
-with input_col:
-    st.subheader("✨ Quick Start - Minimal Inputs")
-    st.markdown("*Fill just 1-3 fields below for a complete professional prompt*")
+    with st.expander(f"🎬 Video {scene_num} (8 seconds)", expanded=scene_num == 1):
+        col1, col2 = st.columns(2)
 
-    # Essential inputs - these are the core ones
-    character_input = st.text_area(
-        "🎭 Character (Required)",
-        placeholder="e.g., 'Bigfoot', 'A friendly Yeti', 'Outdoor enthusiast'",
-        height=80,
-        help="Describe the main character - can be as simple as 'Bigfoot' or detailed"
-    )
+        with col1:
+            character = st.text_area(
+                f"🎭 Character - Video {scene_num}",
+                value=scene_data.get('character', ''),
+                placeholder="e.g., 'Bigfoot', 'A friendly Yeti', 'Outdoor enthusiast'",
+                height=80,
+                key=f"character_{scene_num}",
+                help="Main character(s) for this scene"
+            )
 
-    scene_input = st.text_area(
-        "🏞️ Scene/Action",
-        placeholder="e.g., 'Building a snow kitchen', 'Finding an alien's selfie stick', 'Camping in the forest'",
-        height=80,
-        help="What's happening in the scene? Keep it simple - the AI will add rich details"
-    )
+            scene_setting = st.text_area(
+                f"🏞️ Scene Setting - Video {scene_num}",
+                value=scene_data.get('scene_setting', ''),
+                placeholder="e.g., 'Snowy mountain landscape', 'Dense forest clearing'",
+                height=80,
+                key=f"scene_setting_{scene_num}",
+                help="Location and environment for this scene"
+            )
 
-    # Optional detailed inputs - collapsible
-    with st.expander("🔧 Optional Details (Advanced)", expanded=False):
-        st.markdown("*Only fill these if you want specific control over these elements*")
+            action_dialogue = st.text_area(
+                f"💬 Action & Dialogue - Video {scene_num}",
+                value=scene_data.get('action_dialogue', ''),
+                placeholder="e.g., 'Building snow sandwiches and laughing together'",
+                height=80,
+                key=f"action_dialogue_{scene_num}",
+                help="What happens in this 8-second scene"
+            )
 
-        action_input = st.text_area(
-            "💬 Specific Dialogue/Actions",
-            placeholder="e.g., 'Says: Snow sandwiches are the ultimate mountain snack!'",
-            height=70
-        )
+            camera_style = st.text_area(
+                f"📹 Camera Style - Video {scene_num}",
+                value=scene_data.get('camera_style', ''),
+                placeholder="e.g., 'POV selfie stick, handheld, close-up shots'",
+                height=70,
+                key=f"camera_style_{scene_num}",
+                help="Camera movement and shot types"
+            )
 
-        camera_style = st.text_area(
-            "📹 Camera Style",
-            placeholder="e.g., 'POV selfie stick, handheld'",
-            height=70
-        )
+        with col2:
+            sounds = st.text_area(
+                f"🔊 Sounds - Video {scene_num}",
+                value=scene_data.get('sounds', ''),
+                placeholder="e.g., 'Crunching snow, laughter, mountain echoes'",
+                height=80,
+                key=f"sounds_{scene_num}",
+                help="Audio elements for this scene"
+            )
 
-        sounds_input = st.text_area(
-            "🔊 Sounds",
-            placeholder="e.g., 'Crunching snow, laughter, mountain echoes'",
-            height=70
-        )
+            landscape = st.text_area(
+                f"🌲 Landscape - Video {scene_num}",
+                value=scene_data.get('landscape', ''),
+                placeholder="e.g., 'Snow-covered pine trees, rugged mountains'",
+                height=80,
+                key=f"landscape_{scene_num}",
+                help="Environmental details"
+            )
 
-        landscape_input = st.text_area(
-            "🌲 Landscape Details",
-            placeholder="e.g., 'Snowy mountains, pine trees'",
-            height=70
-        )
+            props = st.text_area(
+                f"🎯 Props - Video {scene_num}",
+                value=scene_data.get('props', ''),
+                placeholder="e.g., 'Pinecones, icicles, snowballs'",
+                height=80,
+                key=f"props_{scene_num}",
+                help="Objects and items in the scene"
+            )
 
-        props_input = st.text_area(
-            "🎯 Props/Objects",
-            placeholder="e.g., 'Pinecones, icicles, snowballs'",
-            height=70
-        )
+        # Delete button (only show if more than 1 scene)
+        if len(st.session_state['video_scenes']) > 1:
+            if st.button(f"🗑️ Delete Video {scene_num}", key=f"delete_{scene_num}", type="secondary"):
+                return "DELETE"
 
-    # Examples for inspiration
-    with st.expander("💡 Example Ideas", expanded=False):
-        st.markdown("""
-        **Quick Examples:**
-        - Character: "Yeti and Bigfoot" + Scene: "Building snow sandwiches"
-        - Character: "Friendly explorer" + Scene: "Discovering alien technology"
-        - Character: "Bigfoot" + Scene: "Camping in cozy forest shelter"
-        - Character: "Outdoor enthusiast" + Scene: "Winter campfire cooking"
+    return {
+        'character': character,
+        'scene_setting': scene_setting,
+        'action_dialogue': action_dialogue,
+        'camera_style': camera_style,
+        'sounds': sounds,
+        'landscape': landscape,
+        'props': props
+    }
 
-        **The AI will automatically add:**
-        - Rich character descriptions and personalities
-        - Detailed atmospheric settings
-        - Professional camera work and timing
-        - Authentic vlog-style dialogue
-        - Complete sound design
-        - Natural props and environment details
-        """)
+# Main layout
+st.markdown("---")
 
-# Right column - Generate button and output
-with output_col:
-    st.subheader("🚀 Generate Professional Prompt")
+# Scene management buttons
+button_col1, button_col2, button_col3 = st.columns([1, 1, 2])
 
-    # Show what's required
-    if not character_input.strip():
-        st.info("💡 **Tip:** Add at least a character description to get started!")
+with button_col1:
+    if st.button("➕ Add Video Scene", type="secondary", disabled=len(st.session_state['video_scenes']) >= 5):
+        st.session_state['video_scenes'].append({})
+        st.rerun()
+
+with button_col2:
+    st.markdown(f"**Total Duration:** {len(st.session_state['video_scenes']) * 8} seconds")
+
+with button_col3:
+    if len(st.session_state['video_scenes']) >= 5:
+        st.info("Maximum 5 scenes (40 seconds) reached")
+
+# Create input fields for all scenes
+scenes_to_delete = []
+updated_scenes = []
+
+for i, scene_data in enumerate(st.session_state['video_scenes']):
+    scene_num = i + 1
+    result = create_scene_input(scene_num, scene_data)
+
+    if result == "DELETE":
+        scenes_to_delete.append(i)
     else:
-        st.success("✅ Ready to generate!")
+        updated_scenes.append(result)
+
+# Handle deletions
+if scenes_to_delete:
+    for idx in reversed(scenes_to_delete):  # Delete from end to avoid index issues
+        del st.session_state['video_scenes'][idx]
+    st.rerun()
+else:
+    st.session_state['video_scenes'] = updated_scenes
+
+# Generate button and consistency settings
+st.markdown("---")
+
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader("🎯 Story Consistency")
+
+    overall_story = st.text_area(
+        "📖 Overall Story/Theme",
+        placeholder="e.g., 'Bigfoot and Yeti having winter outdoor adventures'",
+        height=80,
+        help="Common theme that connects all video scenes"
+    )
+
+    main_characters = st.text_input(
+        "👥 Main Characters (consistent across scenes)",
+        placeholder="e.g., 'Bigfoot, Yeti'",
+        help="Characters that appear throughout the video series"
+    )
+
+with col2:
+    st.subheader("🚀 Generate Multi-Scene Prompts")
+
+    # Check if at least one scene has character info
+    has_content = any(scene.get('character', '').strip() for scene in st.session_state['video_scenes'])
+
+    if not has_content:
+        st.info("💡 Add character info to at least one scene to get started!")
+    else:
+        st.success(f"✅ Ready to generate {len(st.session_state['video_scenes'])} video scenes!")
 
     generate_button = st.button(
-        "🚀 Generate Professional Vlog Prompt",
+        f"🚀 Generate {len(st.session_state['video_scenes'])} Professional Prompts",
         type="primary",
         use_container_width=True,
-        disabled=not character_input.strip()
+        disabled=not has_content
     )
 
-    # Process inputs when generate button is clicked
-    if generate_button:
-        with st.spinner("🎬 Creating your professional vlog prompt..."):
-            try:
-                # Create structured inputs dictionary
-                structured_inputs = {
-                    'character': character_input.strip(),
-                    'scene': scene_input.strip(),
-                    'action': action_input.strip(),
-                    'camera_style': camera_style.strip(),
-                    'sounds': sounds_input.strip(),
-                    'landscape': landscape_input.strip(),
-                    'props': props_input.strip()
-                }
+# Process inputs when generate button is clicked
+if generate_button:
+    with st.spinner(f"🎬 Creating {len(st.session_state['video_scenes'])} professional video prompts..."):
+        try:
+            # Create multi-scene data
+            multi_scene_data = {
+                'overall_story': overall_story.strip(),
+                'main_characters': main_characters.strip(),
+                'video_scenes': st.session_state['video_scenes']
+            }
 
-                # Process through the orchestrator
-                final_prompt: FinalVeoPrompt = st.session_state['orchestrator'].process_user_input(structured_inputs)
+            # Process through the orchestrator
+            multi_scene_prompts = st.session_state['orchestrator'].process_multi_scene_input(multi_scene_data)
 
-                # Render with Jinja2 template
-                env = Environment(loader=FileSystemLoader('templates'))
-                template = env.get_template('veoprompt.md.j2')
-                prompt_md = template.render(**final_prompt.model_dump())
+            # Store in session state
+            st.session_state['generated_prompts'] = multi_scene_prompts
+            st.success(f"✅ {len(st.session_state['video_scenes'])} professional prompts generated!")
 
-                # Store in session state
-                st.session_state['generated_prompt'] = prompt_md
-                st.success("✅ Professional prompt generated!")
+        except Exception as e:
+            st.error(f"❌ Error generating prompts: {e}")
+            st.info("💡 Try simplifying your inputs or check the character descriptions.")
 
-            except Exception as e:
-                st.error(f"❌ Error generating prompt: {e}")
-                st.info("💡 Try simplifying your inputs or check the character description.")
+# Display the generated prompts if available
+if st.session_state['generated_prompts']:
+    st.markdown("---")
 
-    # Display the generated prompt if available
-    if st.session_state['generated_prompt']:
-        # Create a row with title and copy button
-        title_col, copy_col = st.columns([3, 1])
-        with title_col:
-            st.markdown("### 🎥 Your Professional Vlog Prompt")
-        with copy_col:
-            if st.button("📋 Copy Prompt", key="copy_button", use_container_width=True):
-                st.code(st.session_state['generated_prompt'], language="markdown")
-                st.success("✅ Copied!")
+    # Create a row with title and copy button
+    title_col, copy_col = st.columns([3, 1])
+    with title_col:
+        st.markdown("### 🎥 Your Multi-Scene Professional Prompts")
+    with copy_col:
+        if st.button("📋 Copy All Prompts", key="copy_all_button", use_container_width=True):
+            st.code(st.session_state['generated_prompts'], language="markdown")
+            st.success("✅ All prompts copied!")
 
-        # Show the prompt in a nice container
-        with st.container():
-            st.markdown("---")
-            st.markdown(st.session_state['generated_prompt'])
-            st.markdown("---")
-            st.markdown("*💡 This prompt is optimized for VEO3 and other AI video generation models*")
+    # Show the prompts in a nice container
+    with st.container():
+        st.markdown(st.session_state['generated_prompts'])
+        st.markdown("---")
+        st.markdown("*💡 Each prompt is optimized for VEO3 and other AI video generation models*")

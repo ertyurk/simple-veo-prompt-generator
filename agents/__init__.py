@@ -49,13 +49,22 @@ QUALITY STANDARDS:
 - Balance fantasy elements with realistic execution
 - Ensure all actions fit within 8 seconds
 - Maintain consistent "Outdoor Boys" vlog style throughout
+- For multi-scene series: ensure character consistency and story continuity
+- Each scene should work standalone AND as part of a larger narrative
+
+MULTI-SCENE CONSISTENCY REQUIREMENTS:
+- Maintain character personalities and physical descriptions across scenes
+- Keep consistent props, locations, and environmental elements
+- Ensure story progression and narrative flow
+- Preserve the same vlog style and camera approach throughout
+- Characters should reference events from previous scenes when appropriate
 
 EXAMPLES OF EXCELLENT ELEMENTS:
 - "They compete to see who can make the most ridiculous, towering sandwich. Both creatures laugh, toss snowballs, and try to take a big bite—only to get a face full of snow."
 - "Camera style: POV, selfie stick, occasional drone shots capturing the snow kitchen and the playful chaos, but always keeping the raw, vlog-like feel—unsteady, handheld, and personal."
 - "Sounds: Crunching snow, laughter, playful banter, echoing mountains."
 
-Transform the user's minimal inputs into rich, detailed prompts that match this quality and style exactly.
+Transform the user's minimal inputs into rich, detailed prompts that match this quality and style exactly. For multi-scene requests, ensure seamless continuity while making each scene self-contained.
 """
 
 # Single Master Agent
